@@ -1,10 +1,18 @@
 use std::collections::HashMap;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
-use log::{debug, info, warn};
+use log::{info, warn};
+
+#[cfg(feature = "i3")]
+use std::time::Duration;
+
+#[cfg(feature = "i3")]
+use log::debug;
+
+#[cfg(feature = "i3")]
 use x11rb::xcb_ffi::XCBConnection;
 
+#[cfg(feature = "i3")]
 use x11rb::{
     connection::Connection,
     protocol::xproto::{self, ConnectionExt as _},
@@ -21,18 +29,30 @@ extern crate i3ipc;
 #[cfg(feature = "i3")]
 mod wm_i3;
 
+#[cfg(feature = "hyprland")]
+mod wm_hyprland;
+
+#[cfg(feature = "hyprland")]
+mod wayland_render;
+
 #[cfg(feature = "i3")]
 use crate::wm_i3 as wm;
 
+#[cfg(feature = "hyprland")]
+use crate::wm_hyprland as wm;
+
 #[derive(Debug)]
 pub struct DesktopWindow {
+    #[allow(dead_code)]
     id: i64,
+    #[allow(dead_code)]
     x_window_id: Option<i32>,
     pos: (i32, i32),
     size: (i32, i32),
     is_focused: bool,
 }
 
+#[cfg(feature = "i3")]
 #[derive(Debug)]
 pub struct RenderWindow<'a> {
     desktop_window: &'a DesktopWindow,
@@ -41,7 +61,7 @@ pub struct RenderWindow<'a> {
     rect: (i32, i32, i32, i32),
 }
 
-#[cfg(any(feature = "i3", feature = "add_some_other_wm_here"))]
+#[cfg(feature = "i3")]
 fn main() -> Result<()> {
     pretty_env_logger::init();
     let app_config = args::parse_args();
@@ -333,12 +353,56 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(any(feature = "i3", feature = "add_some_other_wm_here")))]
+#[cfg(feature = "hyprland")]
+fn main() -> Result<()> {
+    use crate::wayland_render::WaylandRenderer;
+
+    pretty_env_logger::init();
+    let app_config = args::parse_args();
+
+    // Get visible windows from Hyprland
+    let desktop_windows_raw = wm::get_windows().context("Couldn't get desktop windows")?;
+
+    if desktop_windows_raw.is_empty() {
+        warn!("No windows found");
+        return Ok(());
+    }
+
+    // Sort by position to make hint position more deterministic
+    let desktop_windows = utils::sort_by_pos(desktop_windows_raw);
+
+    info!("Found {} windows", desktop_windows.len());
+
+    // Generate hints for each window
+    let mut hints = HashMap::new();
+    let hint_chars = app_config.hint_chars.clone();
+    for window in &desktop_windows {
+        let hint = utils::get_next_hint(hints.keys().collect(), &hint_chars, desktop_windows.len())?;
+        hints.insert(hint, window);
+    }
+
+    // Create Wayland renderer and display hints
+    let mut renderer = WaylandRenderer::new(app_config)?;
+
+    // Render hints on windows
+    renderer.render_hints(&desktop_windows, &hints)?;
+
+    // Wait for user input and focus selected window
+    if let Some(selected_window) = renderer.wait_for_hint_selection(&hints)? {
+        info!("Focusing window at ({}, {})", selected_window.pos.0, selected_window.pos.1);
+        wm::focus_window(selected_window)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(not(any(feature = "i3", feature = "hyprland")))]
 fn main() -> Result<()> {
     eprintln!(
         "You need to enable support for at least one window manager.\n
 Currently supported:
-    --features i3"
+    --features i3
+    --features hyprland"
     );
 
     Ok(())

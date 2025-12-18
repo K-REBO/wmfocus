@@ -19,7 +19,9 @@ Thanks to cairo, it should work on all kinds of screens and automatically displa
 
 **On Arch Linux**: `pacman -S wmfocus`
 
-**With Cargo**: `cargo install --features i3 wmfocus`
+**With Cargo**:
+- For i3: `cargo install --features i3 wmfocus`
+- For Hyprland: `cargo install --features hyprland wmfocus`
 
 ## Usage
 
@@ -84,13 +86,17 @@ This will print quite some useful debugging info.
 
 ## Compiling
 
-You need to have recent versions of `rust`, `cargo`, `xcb-util-keysyms`, `libxkbcommon-x11` and `cairo` installed.
-
-Then, just clone it like usual and `cargo run` to get output:
+**For i3**: You need to have recent versions of `rust`, `cargo`, `xcb-util-keysyms`, `libxkbcommon-x11` and `cairo` installed.
 
     git clone https://github.com/svenstaro/wmfocus.git
     cd wmfocus
     cargo run --features i3
+
+**For Hyprland**: You need to have recent versions of `rust`, `cargo`, `wayland-client`, `libxkbcommon` and `cairo` installed.
+
+    git clone https://github.com/svenstaro/wmfocus.git
+    cd wmfocus
+    cargo run --features hyprland
 
 
 ## Window manager support
@@ -98,9 +104,10 @@ Then, just clone it like usual and `cargo run` to get output:
 While this tool is window manager-independent, an implementation for your favorite window manager might not yet be available. Current support:
 
 - i3
+- Hyprland (Wayland)
 - sway (partial, accepting PRs)
 
-If you want to implement support for more window managers, have a look at the [i3 implementation](https://github.com/svenstaro/wmfocus/blob/master/src/wm_i3.rs).
+If you want to implement support for more window managers, have a look at the [i3 implementation](https://github.com/svenstaro/wmfocus/blob/master/src/wm_i3.rs) or the [Hyprland implementation](https://github.com/svenstaro/wmfocus/blob/master/src/wm_hyprland.rs).
 
 This tool is heavily inspired by [i3-easyfocus](https://github.com/cornerman/i3-easyfocus).
 

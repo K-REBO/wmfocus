@@ -1,7 +1,11 @@
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use css_color_parser::Color as CssColor;
+
+#[cfg(feature = "i3")]
 use font_loader::system_fonts;
+
+#[cfg(feature = "i3")]
 use log::{info, warn};
 
 use crate::utils;
@@ -21,6 +25,7 @@ pub enum VerticalAlign {
 }
 
 /// Load a system font.
+#[cfg(feature = "i3")]
 fn load_font(font_family: &str) -> Result<Vec<u8>> {
     let mut font_family_property = system_fonts::FontPropertyBuilder::new()
         .family(font_family)
@@ -52,13 +57,27 @@ fn parse_truetype_font(f: &str) -> Result<FontConfig> {
         v.next().context("Wrong font format")?,
     );
 
-    let loaded_font = load_font(family).context("Couldn't load font")?;
-    let font_config = FontConfig {
-        font_family: family.to_string(),
-        font_size: size.parse::<f64>().context("Couldn't parse font size")?,
-        loaded_font,
-    };
-    Ok(font_config)
+    // Skip font loading for Hyprland/Wayland (uses Cairo default fonts)
+    #[cfg(feature = "hyprland")]
+    {
+        let font_config = FontConfig {
+            font_family: family.to_string(),
+            font_size: size.parse::<f64>().context("Couldn't parse font size")?,
+            loaded_font: Vec::new(),
+        };
+        return Ok(font_config);
+    }
+
+    #[cfg(not(feature = "hyprland"))]
+    {
+        let loaded_font = load_font(family).context("Couldn't load font")?;
+        let font_config = FontConfig {
+            font_family: family.to_string(),
+            font_size: size.parse::<f64>().context("Couldn't parse font size")?,
+            loaded_font,
+        };
+        Ok(font_config)
+    }
 }
 
 /// Validate coordinates and parse offset.
@@ -94,7 +113,9 @@ fn parse_color(color_str: &str) -> Result<(f64, f64, f64, f64), String> {
 
 #[derive(Debug, Clone)]
 pub struct Offset {
+    #[allow(dead_code)]
     pub x: i32,
+    #[allow(dead_code)]
     pub y: i32,
 }
 
@@ -102,6 +123,7 @@ pub struct Offset {
 pub struct FontConfig {
     pub font_family: String,
     pub font_size: f64,
+    #[allow(dead_code)]
     pub loaded_font: Vec<u8>,
 }
 

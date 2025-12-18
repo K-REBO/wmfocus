@@ -1,19 +1,41 @@
 use std::iter;
+
+#[cfg(feature = "i3")]
 use std::thread::sleep;
+
+#[cfg(feature = "i3")]
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
+
+#[cfg(feature = "i3")]
+use anyhow::bail;
 use itertools::Itertools;
+
+#[cfg(feature = "i3")]
 use log::debug;
+
+#[cfg(feature = "i3")]
 use regex::Regex;
+
+#[cfg(feature = "i3")]
 use x11rb::connection::Connection;
+
+#[cfg(feature = "i3")]
 use x11rb::protocol::xproto::{
     grab_keyboard, grab_pointer, ConnectionExt, EventMask, GrabMode, GrabStatus, Screen, Visualtype,
 };
+
+#[cfg(feature = "i3")]
 use x11rb::protocol::Event;
 
+#[cfg(feature = "i3")]
 use crate::args::AppConfig;
-use crate::{DesktopWindow, RenderWindow};
+
+use crate::DesktopWindow;
+
+#[cfg(feature = "i3")]
+use crate::RenderWindow;
 
 /// Given a list of `current_hints` and a bunch of `hint_chars`, this finds a unique combination
 /// of characters that doesn't yet exist in `current_hints`. `max_count` is the maximum possible
@@ -42,12 +64,14 @@ pub fn get_next_hint(
             ret = folded;
         }
     }
+    #[cfg(feature = "i3")]
     debug!("Returning next hint: {}", ret);
     Ok(ret)
 }
 
 /// A rust version of XCB's `xcb_visualtype_t` struct. This is used in a FFI-way.
 #[derive(Debug, Clone, Copy)]
+#[cfg(feature = "i3")]
 #[repr(C)]
 pub struct xcb_visualtype_t {
     pub visual_id: u32,
@@ -60,6 +84,7 @@ pub struct xcb_visualtype_t {
     pub pad0: [u8; 4],
 }
 
+#[cfg(feature = "i3")]
 impl From<Visualtype> for xcb_visualtype_t {
     fn from(value: Visualtype) -> xcb_visualtype_t {
         xcb_visualtype_t {
@@ -76,6 +101,7 @@ impl From<Visualtype> for xcb_visualtype_t {
 }
 
 /// Find a `xcb_visualtype_t` based on its ID number
+#[cfg(feature = "i3")]
 pub fn find_xcb_visualtype(conn: &impl Connection, visual_id: u32) -> Option<xcb_visualtype_t> {
     for root in &conn.setup().roots {
         for depth in &root.allowed_depths {
@@ -89,6 +115,7 @@ pub fn find_xcb_visualtype(conn: &impl Connection, visual_id: u32) -> Option<xcb
     None
 }
 
+#[cfg(feature = "i3")]
 pub fn extents_for_text(text: &str, family: &str, size: f64) -> Result<cairo::TextExtents> {
     // Create a buffer image that should be large enough.
     // TODO: Figure out the maximum size from the largest window on the desktop.
@@ -103,6 +130,7 @@ pub fn extents_for_text(text: &str, family: &str, size: f64) -> Result<cairo::Te
 
 /// Draw a `text` onto `rw`. In case any `current_hints` are already typed, it will draw those in a
 /// different color to show that they were in fact typed.
+#[cfg(feature = "i3")]
 pub fn draw_hint_text(
     rw: &RenderWindow,
     app_config: &AppConfig,
@@ -191,6 +219,7 @@ pub fn draw_hint_text(
 /// Generally with X, I found that you can't grab global keyboard input without it failing
 /// sometimes due to other clients grabbing it occasionally. Hence, we'll have to keep retrying
 /// until we eventually succeed.
+#[cfg(feature = "i3")]
 pub fn snatch_keyboard(conn: &impl Connection, screen: &Screen, timeout: Duration) -> Result<()> {
     let now = Instant::now();
     loop {
@@ -220,6 +249,7 @@ pub fn snatch_keyboard(conn: &impl Connection, screen: &Screen, timeout: Duratio
 /// Generally with X, I found that you can't grab global mouse input without it failing sometimes
 /// due to other clients grabbing it occasionally. Hence, we'll have to keep retrying until we
 /// eventually succeed.
+#[cfg(feature = "i3")]
 pub fn snatch_mouse(conn: &impl Connection, screen: &Screen, timeout: Duration) -> Result<()> {
     let now = Instant::now();
     loop {
@@ -257,6 +287,7 @@ pub fn sort_by_pos(mut dws: Vec<DesktopWindow>) -> Vec<DesktopWindow> {
 }
 
 /// Returns true if `r1` and `r2` overlap.
+#[cfg(feature = "i3")]
 fn intersects(r1: (i32, i32, i32, i32), r2: (i32, i32, i32, i32)) -> bool {
     let left_corner_inside = r1.0 < r2.0 + r2.2;
     let right_corner_inside = r1.0 + r1.2 > r2.0;
@@ -266,6 +297,7 @@ fn intersects(r1: (i32, i32, i32, i32), r2: (i32, i32, i32, i32)) -> bool {
 }
 
 /// Finds overlaps and returns a list of those rects in the format (x, y, w, h).
+#[cfg(feature = "i3")]
 pub fn find_overlaps(
     rws: Vec<&RenderWindow>,
     rect: (i32, i32, i32, i32),
@@ -280,12 +312,14 @@ pub fn find_overlaps(
 }
 
 /// Remove last pressed key from pressed keys
+#[cfg(feature = "i3")]
 pub fn remove_last_key(pressed_keys: &mut String, kstr: &str) {
     if pressed_keys.contains(kstr) {
         pressed_keys.replace_range(pressed_keys.len() - kstr.len().., "");
     }
 }
 
+#[cfg(feature = "i3")]
 pub fn get_pressed_symbol(conn: &impl Connection, event: Event) -> xkeysym::Keysym {
     let mapping = conn
         .get_keyboard_mapping(
@@ -340,16 +374,19 @@ impl Sequence {
         vec.sort_by_key(|a| a.to_lowercase());
     }
 
+    #[cfg(feature = "i3")]
     pub fn remove(&mut self, key: &str) {
         self.sequence.retain(|x| x != key);
     }
 
+    #[cfg(feature = "i3")]
     pub fn push(&mut self, key: String) {
         self.sequence.push(key);
         Sequence::sort(&mut self.sequence);
     }
 
     /// Sequence is started if more than one key is pressed
+    #[cfg(feature = "i3")]
     pub fn is_started(&self) -> bool {
         self.sequence.len() > 1
     }
